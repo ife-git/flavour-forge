@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { autoResizeTextarea } from "./utils";
-import flavourIcon from "./assets/flavour.svg";
-import chefIcon from "./assets/chef.svg";
+import flavourIcon from "./flavour.svg";
+import chefIcon from "./chef.svg";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/authContext";
 import Login from "./pages/login";
