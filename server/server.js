@@ -31,10 +31,28 @@ await connectDB();
 // Helmet for security headers
 app.use(helmet());
 
-// CORS configuration for Vercel frontend
+// ========== CORS CONFIGURATION ==========
+// Allow multiple origins (development + production)
+const allowedOrigins = [
+  "http://localhost:5173", // Local development
+  "http://localhost:5174", // Alternative local port
+  "https://flavour-forge-frontend.onrender.com", // Production frontend
+  process.env.FRONTEND_URL, // Custom frontend URL from env
+].filter(Boolean); // Remove any undefined values
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.warn(`❌ CORS blocked: ${origin}`);
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true, // Important for sessions
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -107,7 +125,7 @@ app.listen(PORT, () => {
   console.log(`📡 API endpoints:`);
   console.log(`   POST /api/auth/register - Register user`);
   console.log(`   POST /api/auth/login - Login user`);
-  console.log(`   POST /api/chat- AI recipe chat`);
+  console.log(`   POST /api/chat - AI recipe chat`);
   console.log(`   GET  /api/recipes - Get saved recipes`);
   console.log(`   GET  /api/health - Health check`);
 });
