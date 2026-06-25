@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-# package-lock.json  ← REMOVE THIS LINE to keep lock file
 
 # Environment variables
 .env
