@@ -4,8 +4,8 @@ import { autoResizeTextarea } from "../utils";
 import { useAuth } from "../context/authContext";
 import { useNotification } from "../context/notificationContext";
 import { API_URL } from "../config";
-import flavourIcon from "../assets/flavour.svg";
-import chefIcon from "../assets/chef.svg";
+import flavourIcon from "/flavour.svg";
+import chefIcon from "/chef.svg";
 
 export default function Chat() {
   const [userPrompt, setUserPrompt] = useState("");
