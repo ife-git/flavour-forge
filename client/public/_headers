@@ -1,0 +1,15 @@
+# client/public/_headers
+/*
+  X-Content-Type-Options: nosniff
+
+/assets/*.js
+  Content-Type: application/javascript
+
+/assets/*.css
+  Content-Type: text/css
+
+/*.js
+  Content-Type: application/javascript
+
+/*.css
+  Content-Type: text/css
