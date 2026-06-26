@@ -56,7 +56,7 @@ app.use(
     },
     credentials: true, // Important for sessions
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   }),
 );
 
@@ -87,7 +87,7 @@ app.use(
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
       httpOnly: true,
       maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
-      sameSite: "lax",
+      sameSite: "none",
     },
   }),
 );
