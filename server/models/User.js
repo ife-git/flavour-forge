@@ -7,9 +7,10 @@ const messageSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
+// ✅ REMOVED 'unique: true' from sessionId
 const chatSessionSchema = new mongoose.Schema({
-  sessionId: { type: String, required: true, unique: true },
-  title: { type: String, default: "New Conversation" }, // e.g., "Pasta with tomatoes"
+  sessionId: { type: String, required: true }, // ← No more unique: true
+  title: { type: String, default: "New Conversation" },
   messages: [messageSchema],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
@@ -43,7 +44,6 @@ const userSchema = new mongoose.Schema(
       enum: ["mild", "medium", "spicy"],
       default: "medium",
     },
-    // Chat sessions for recipe conversations
     chatSessions: [
       {
         sessionId: { type: String, required: true },
@@ -59,7 +59,6 @@ const userSchema = new mongoose.Schema(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
-    // ✅ ADD THIS - Saved recipes collection
     savedRecipes: [
       {
         title: { type: String, required: true },
@@ -77,7 +76,6 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// Password comparison method
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
