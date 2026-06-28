@@ -73,6 +73,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ========== SESSION CONFIGURATION ==========
+// ========== SESSION CONFIGURATION ==========
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "jellyfish-baskingshark",
@@ -80,14 +81,15 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
-      ttl: 14 * 24 * 60 * 60, // 14 days session expiry
+      ttl: 14 * 24 * 60 * 60,
       autoRemove: "native",
     }),
     cookie: {
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
+      maxAge: 14 * 24 * 60 * 60 * 1000,
       sameSite: "none",
+      domain: ".onrender.com", // ✅ ADD THIS LINE
     },
   }),
 );

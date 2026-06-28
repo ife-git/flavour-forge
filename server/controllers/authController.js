@@ -118,7 +118,13 @@ export async function logout(req, res) {
     if (err) {
       return res.status(500).json({ error: "⚠️ Logout failed" });
     }
-    res.clearCookie("connect.sid");
+    // ✅ Clear cookie with proper options for cross-site
+    res.clearCookie("connect.sid", {
+      path: "/",
+      domain: ".onrender.com",
+      secure: true,
+      sameSite: "none",
+    });
     res.json({ message: "✅ Logged out successfully" });
   });
 }
