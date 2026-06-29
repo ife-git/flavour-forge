@@ -29,7 +29,7 @@ export async function register(req, res) {
       });
     }
 
-    // HASH THE PASSWORD HERE - IN THE CONTROLLER
+    // HASH THE PASSWORD
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -44,17 +44,32 @@ export async function register(req, res) {
     // Set session
     req.session.userId = user._id;
 
-    // Emit registration event
-    appEvents.emit("user:registered", user);
+    // ✅ SAVE SESSION EXPLICITLY BEFORE RESPONDING
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+        return res.status(500).json({
+          error: "Session could not be created",
+        });
+      }
 
-    res.status(201).json({
-      message: "✅ User registered successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-      },
+      // Emit registration event (email)
+      try {
+        appEvents.emit("user:registered", user);
+      } catch (emailError) {
+        console.error("Email error:", emailError.message);
+        // Registration continues even if email fails
+      }
+
+      res.status(201).json({
+        message: "✅ User registered successfully",
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+        },
+      });
     });
   } catch (err) {
     console.error("Register error:", err);
@@ -93,17 +108,27 @@ export async function login(req, res) {
     // Set session
     req.session.userId = user._id;
 
-    // Emit login event for notification
-    appEvents.emit("user:login", user);
+    // ✅ SAVE SESSION EXPLICITLY BEFORE RESPONDING
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+        return res.status(500).json({
+          error: "Session could not be created",
+        });
+      }
 
-    res.json({
-      message: "✅ Logged in successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-      },
+      // Emit login event for notification
+      appEvents.emit("user:login", user);
+
+      res.json({
+        message: "✅ Logged in successfully",
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+        },
+      });
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -118,7 +143,7 @@ export async function logout(req, res) {
     if (err) {
       return res.status(500).json({ error: "⚠️ Logout failed" });
     }
-    // ✅ Clear cookie with proper options for cross-site
+    // Clear cookie with proper options for cross-site
     res.clearCookie("connect.sid", {
       path: "/",
       domain: ".onrender.com",
