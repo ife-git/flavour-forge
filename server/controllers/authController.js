@@ -118,44 +118,72 @@ export async function login(req, res) {
       });
     }
 
-    // Store user in session
-    req.session.userId = user._id;
-
-    console.log("📝 Saving login session...");
-    console.log("   Session ID:", req.sessionID);
-    console.log("   User ID:", req.session.userId);
-    console.log("   Session cookie domain:", req.session.cookie?.domain);
-
-    // Explicitly save session before responding
-    req.session.save((err) => {
-      if (err) {
-        console.error("❌ Session save error:", err);
-        return res.status(500).json({
-          error: "Couldn't create session.",
-        });
-      }
-
-      console.log("✅ Login session saved to MongoDB!");
-      console.log("   Session ID:", req.sessionID);
-      console.log("   User ID:", req.session.userId);
-
-      // Send login notification (don't let failure affect login)
-      try {
-        appEvents.emit("user:login", user);
-      } catch (emailError) {
-        console.error("Login email error:", emailError);
-      }
-
-      res.json({
-        message: "✅ Logged in successfully",
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          username: user.username,
-        },
+    // ✅ DESTROY ANY EXISTING SESSION FIRST
+    if (req.session) {
+      console.log("🔄 Destroying old session...");
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Error destroying old session:", err);
+        } else {
+          console.log("✅ Old session destroyed");
+        }
+        // Continue with new session creation
+        createNewSession();
       });
-    });
+    } else {
+      createNewSession();
+    }
+
+    function createNewSession() {
+      // Regenerate session to get a clean one
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({
+            error: "Couldn't create session.",
+          });
+        }
+
+        // Store user in session
+        req.session.userId = user._id;
+
+        console.log("📝 Saving login session...");
+        console.log("   Session ID:", req.sessionID);
+        console.log("   User ID:", req.session.userId);
+        console.log("   Session cookie domain:", req.session.cookie?.domain);
+
+        // Explicitly save session before responding
+        req.session.save((err) => {
+          if (err) {
+            console.error("❌ Session save error:", err);
+            return res.status(500).json({
+              error: "Couldn't create session.",
+            });
+          }
+
+          console.log("✅ Login session saved to MongoDB!");
+          console.log("   Session ID:", req.sessionID);
+          console.log("   User ID:", req.session.userId);
+
+          // Send login notification (don't let failure affect login)
+          try {
+            appEvents.emit("user:login", user);
+          } catch (emailError) {
+            console.error("Login email error:", emailError);
+          }
+
+          res.json({
+            message: "✅ Logged in successfully",
+            user: {
+              id: user._id,
+              name: user.name,
+              email: user.email,
+              username: user.username,
+            },
+          });
+        });
+      });
+    }
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({
