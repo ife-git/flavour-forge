@@ -8,7 +8,6 @@ export async function register(req, res) {
   try {
     let { name, email, username, password } = req.body;
 
-    // Validation
     if (!name || !email || !username || !password) {
       return res.status(400).json({
         error: "⚠️ All fields are required",
@@ -19,7 +18,6 @@ export async function register(req, res) {
     email = email.trim().toLowerCase();
     username = username.trim();
 
-    // Check if user already exists
     const existingUser = await User.findOne({
       $or: [{ email }, { username }],
     });
@@ -30,11 +28,9 @@ export async function register(req, res) {
       });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
     const user = await User.create({
       name,
       email,
@@ -42,15 +38,12 @@ export async function register(req, res) {
       password: hashedPassword,
     });
 
-    // Store user in session
     req.session.userId = user._id;
 
     console.log("📝 Saving registration session...");
     console.log("   Session ID:", req.sessionID);
     console.log("   User ID:", req.session.userId);
-    console.log("   Session cookie domain:", req.session.cookie?.domain);
 
-    // Explicitly save session before responding
     req.session.save((err) => {
       if (err) {
         console.error("❌ Session save error:", err);
@@ -63,7 +56,6 @@ export async function register(req, res) {
       console.log("   Session ID:", req.sessionID);
       console.log("   User ID:", req.session.userId);
 
-      // Send welcome email (don't let failure affect registration)
       try {
         appEvents.emit("user:registered", user);
       } catch (emailError) {
@@ -118,72 +110,52 @@ export async function login(req, res) {
       });
     }
 
-    // ✅ DESTROY ANY EXISTING SESSION FIRST
-    if (req.session) {
-      console.log("🔄 Destroying old session...");
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Error destroying old session:", err);
-        } else {
-          console.log("✅ Old session destroyed");
-        }
-        // Continue with new session creation
-        createNewSession();
-      });
-    } else {
-      createNewSession();
-    }
+    // ✅ Regenerate session to get a clean one
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("❌ Session regeneration error:", err);
+        return res.status(500).json({
+          error: "Couldn't create session.",
+        });
+      }
 
-    function createNewSession() {
-      // Regenerate session to get a clean one
-      req.session.regenerate((err) => {
+      // Store user in session
+      req.session.userId = user._id;
+
+      console.log("📝 Saving login session...");
+      console.log("   Session ID:", req.sessionID);
+      console.log("   User ID:", req.session.userId);
+
+      // Explicitly save session before responding
+      req.session.save((err) => {
         if (err) {
-          console.error("Session regeneration error:", err);
+          console.error("❌ Session save error:", err);
           return res.status(500).json({
             error: "Couldn't create session.",
           });
         }
 
-        // Store user in session
-        req.session.userId = user._id;
-
-        console.log("📝 Saving login session...");
+        console.log("✅ Login session saved to MongoDB!");
         console.log("   Session ID:", req.sessionID);
         console.log("   User ID:", req.session.userId);
-        console.log("   Session cookie domain:", req.session.cookie?.domain);
 
-        // Explicitly save session before responding
-        req.session.save((err) => {
-          if (err) {
-            console.error("❌ Session save error:", err);
-            return res.status(500).json({
-              error: "Couldn't create session.",
-            });
-          }
+        try {
+          appEvents.emit("user:login", user);
+        } catch (emailError) {
+          console.error("Login email error:", emailError);
+        }
 
-          console.log("✅ Login session saved to MongoDB!");
-          console.log("   Session ID:", req.sessionID);
-          console.log("   User ID:", req.session.userId);
-
-          // Send login notification (don't let failure affect login)
-          try {
-            appEvents.emit("user:login", user);
-          } catch (emailError) {
-            console.error("Login email error:", emailError);
-          }
-
-          res.json({
-            message: "✅ Logged in successfully",
-            user: {
-              id: user._id,
-              name: user.name,
-              email: user.email,
-              username: user.username,
-            },
-          });
+        res.json({
+          message: "✅ Logged in successfully",
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            username: user.username,
+          },
         });
       });
-    }
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({
