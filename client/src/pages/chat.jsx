@@ -237,7 +237,6 @@ export default function Chat() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Sanitize the input BEFORE using it
     const sanitizedMessage = sanitizeInput(userPrompt);
 
     if (!sanitizedMessage) {
@@ -245,9 +244,7 @@ export default function Chat() {
       return;
     }
 
-    console.log("🚀 Sending with sessionId:", currentSessionId);
-    console.log("📝 Original:", userPrompt);
-    console.log("🧹 Sanitized:", sanitizedMessage);
+    console.log("🚀 Sending message:", sanitizedMessage);
 
     setIsLoading(true);
     setShowOutput(false);
@@ -262,8 +259,8 @@ export default function Chat() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: sanitizedMessage,
-          sessionId: currentSessionId,
+          message: sanitizedMessage, // ✅ ONLY send message
+          // ❌ Remove sessionId: currentSessionId
         }),
       });
 

@@ -50,67 +50,39 @@ function formatMessageForDisplay(msg) {
   return msg.content;
 }
 
-// Helper to get or create chat session
-async function getOrCreateSession(userId, sessionId = null) {
-  const user = await User.findById(userId);
-
-  console.log("🔍 getOrCreateSession Debug:", {
-    userId,
-    requestedSessionId: sessionId,
-    userHasChatSessions: !!user.chatSessions,
-    numSessions: user.chatSessions?.length || 0,
-    allSessionIds: user.chatSessions?.map((s) => s.sessionId) || [],
-  });
-
-  if (sessionId) {
-    const session = user.chatSessions.find((s) => s.sessionId === sessionId);
-
-    if (session) {
-      console.log(
-        `✅ Found existing session: ${sessionId} with ${session.messages?.length || 0} messages`,
-      );
-      return { user, session };
-    } else {
-      console.log(
-        `❌ Session ${sessionId} NOT FOUND in user's sessions! Creating new one.`,
-      );
-    }
-  }
-
-  const newSession = {
-    sessionId: uuidv4(),
-    title: "New Conversation",
-    messages: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  user.chatSessions.push(newSession);
-  await user.save();
-  console.log(`✨ Created NEW session: ${newSession.sessionId}`);
-  return { user, session: newSession };
-}
-
 export async function chatWithAI(req, res) {
   try {
-    const { message, sessionId } = req.body;
-    const userId = req.session.userId;
+    const { message } = req.body; // ✅ Only get message from body
+    const userId = req.session.userId; // ✅ Get user from session cookie
 
     console.log("📥 Received request:", {
       message: message?.substring(0, 50),
-      sessionId,
       userId,
-      hasSession: !!sessionId,
+      sessionId: req.sessionID,
+      hasSession: !!userId,
     });
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    // ✅ Check if user is authenticated
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
     let user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
     let session;
     let isNewSession = false;
 
+    // ✅ Use the session ID from the cookie
+    const sessionId = req.sessionID;
+
+    // Try to find existing session
     if (sessionId) {
       session = user.chatSessions.find((s) => s.sessionId === sessionId);
       if (session) {
@@ -120,10 +92,11 @@ export async function chatWithAI(req, res) {
       }
     }
 
+    // Create new session if not found
     if (!session) {
       isNewSession = true;
       session = {
-        sessionId: uuidv4(),
+        sessionId: sessionId || uuidv4(),
         title: "New Conversation",
         messages: [],
         createdAt: new Date(),
@@ -168,9 +141,8 @@ export async function chatWithAI(req, res) {
     }
     session.updatedAt = new Date();
 
-    // ✅ CRITICAL FIX: Use findOneAndUpdate to directly update the database
+    // Save to database
     if (isNewSession) {
-      // For new session, push the whole session
       await User.updateOne(
         { _id: userId },
         {
@@ -180,7 +152,6 @@ export async function chatWithAI(req, res) {
         },
       );
     } else {
-      // For existing session, update the specific session
       await User.updateOne(
         {
           _id: userId,
