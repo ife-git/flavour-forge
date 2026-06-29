@@ -1,6 +1,5 @@
 import User from "../models/User.js";
 import { appEvents } from "../events/eventEmitter.js";
-import validator from "validator";
 import bcrypt from "bcryptjs";
 
 // @desc    Register a new user
@@ -11,7 +10,9 @@ export async function register(req, res) {
 
     // Validation
     if (!name || !email || !username || !password) {
-      return res.status(400).json({ error: "⚠️ All fields are required" });
+      return res.status(400).json({
+        error: "⚠️ All fields are required",
+      });
     }
 
     name = name.trim();
@@ -29,11 +30,11 @@ export async function register(req, res) {
       });
     }
 
-    // HASH THE PASSWORD
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user with hashed password
+    // Create user
     const user = await User.create({
       name,
       email,
@@ -41,24 +42,29 @@ export async function register(req, res) {
       password: hashedPassword,
     });
 
-    // Set session
+    // Store user in session
     req.session.userId = user._id;
 
-    // ✅ SAVE SESSION EXPLICITLY BEFORE RESPONDING
+    console.log("📝 Saving registration session...");
+    console.log("Session ID:", req.sessionID);
+    console.log("User ID:", req.session.userId);
+
+    // Explicitly save session before responding
     req.session.save((err) => {
       if (err) {
-        console.error("Session save error:", err);
+        console.error("❌ Session save error:", err);
         return res.status(500).json({
-          error: "Session could not be created",
+          error: "Couldn't create session.",
         });
       }
 
-      // Emit registration event (email)
+      console.log("✅ Registration session saved.");
+
+      // Send welcome email (don't let failure affect registration)
       try {
         appEvents.emit("user:registered", user);
       } catch (emailError) {
-        console.error("Email error:", emailError.message);
-        // Registration continues even if email fails
+        console.error("Welcome email error:", emailError);
       }
 
       res.status(201).json({
@@ -73,7 +79,9 @@ export async function register(req, res) {
     });
   } catch (err) {
     console.error("Register error:", err);
-    res.status(500).json({ error: "⚠️ Registration failed" });
+    res.status(500).json({
+      error: "⚠️ Registration failed",
+    });
   }
 }
 
@@ -84,41 +92,53 @@ export async function login(req, res) {
     let { username, password } = req.body;
 
     if (!username || !password) {
-      return res
-        .status(400)
-        .json({ error: "⚠️ Username and password required" });
+      return res.status(400).json({
+        error: "⚠️ Username and password required",
+      });
     }
 
     username = username.trim();
 
-    // Find user
     const user = await User.findOne({ username });
 
     if (!user) {
-      return res.status(401).json({ error: "⚠️ Invalid credentials" });
+      return res.status(401).json({
+        error: "⚠️ Invalid credentials",
+      });
     }
 
-    // Check password (using model method)
     const isValid = await user.comparePassword(password);
 
     if (!isValid) {
-      return res.status(401).json({ error: "⚠️ Invalid credentials" });
+      return res.status(401).json({
+        error: "⚠️ Invalid credentials",
+      });
     }
 
-    // Set session
+    // Store user in session
     req.session.userId = user._id;
 
-    // ✅ SAVE SESSION EXPLICITLY BEFORE RESPONDING
+    console.log("📝 Saving login session...");
+    console.log("Session ID:", req.sessionID);
+    console.log("User ID:", req.session.userId);
+
+    // Explicitly save session before responding
     req.session.save((err) => {
       if (err) {
-        console.error("Session save error:", err);
+        console.error("❌ Session save error:", err);
         return res.status(500).json({
-          error: "Session could not be created",
+          error: "Couldn't create session.",
         });
       }
 
-      // Emit login event for notification
-      appEvents.emit("user:login", user);
+      console.log("✅ Login session saved.");
+
+      // Send login notification (don't let failure affect login)
+      try {
+        appEvents.emit("user:login", user);
+      } catch (emailError) {
+        console.error("Login email error:", emailError);
+      }
 
       res.json({
         message: "✅ Logged in successfully",
@@ -132,7 +152,9 @@ export async function login(req, res) {
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "⚠️ Login failed" });
+    res.status(500).json({
+      error: "⚠️ Login failed",
+    });
   }
 }
 
@@ -141,16 +163,21 @@ export async function login(req, res) {
 export async function logout(req, res) {
   req.session.destroy((err) => {
     if (err) {
-      return res.status(500).json({ error: "⚠️ Logout failed" });
+      return res.status(500).json({
+        error: "⚠️ Logout failed",
+      });
     }
-    // Clear cookie with proper options for cross-site
+
     res.clearCookie("connect.sid", {
       path: "/",
       domain: ".onrender.com",
       secure: true,
       sameSite: "none",
     });
-    res.json({ message: "✅ Logged out successfully" });
+
+    res.json({
+      message: "✅ Logged out successfully",
+    });
   });
 }
 
@@ -159,14 +186,18 @@ export async function logout(req, res) {
 export async function getMe(req, res) {
   try {
     if (!req.session.userId) {
-      return res.json({ isLoggedIn: false });
+      return res.json({
+        isLoggedIn: false,
+      });
     }
 
     const user = await User.findById(req.session.userId).select("-password");
 
     if (!user) {
       req.session.destroy();
-      return res.json({ isLoggedIn: false });
+      return res.json({
+        isLoggedIn: false,
+      });
     }
 
     res.json({
@@ -180,6 +211,8 @@ export async function getMe(req, res) {
     });
   } catch (err) {
     console.error("Get me error:", err);
-    res.status(500).json({ error: "⚠️ Server error" });
+    res.status(500).json({
+      error: "⚠️ Server error",
+    });
   }
 }
