@@ -73,7 +73,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ========== SESSION CONFIGURATION ==========
-// ========== SESSION CONFIGURATION ==========
+console.log(
+  "🔗 MongoDB URI:",
+  process.env.MONGODB_URI?.substring(0, 30) + "...",
+);
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "jellyfish-baskingshark",
@@ -81,6 +85,7 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
+      collectionName: "sessions",
       ttl: 14 * 24 * 60 * 60,
       autoRemove: "native",
     }),
@@ -89,10 +94,30 @@ app.use(
       httpOnly: true,
       maxAge: 14 * 24 * 60 * 60 * 1000,
       sameSite: "none",
-      domain: ".onrender.com", // ✅ ADD THIS LINE
+      domain:
+        process.env.NODE_ENV === "production" ? ".onrender.com" : undefined,
     },
   }),
 );
+
+// Add session debugging
+app.use((req, res, next) => {
+  console.log("🔍 Session Debug:", {
+    sessionId: req.sessionID,
+    userId: req.session?.userId,
+    hasSession: !!req.session,
+    cookie: req.headers.cookie?.substring(0, 50) + "...",
+  });
+  next();
+});
+
+// Force session save
+app.use((req, res, next) => {
+  if (req.session && !req.session.regenerate) {
+    req.session.save();
+  }
+  next();
+});
 
 // ========== HEALTH CHECK ENDPOINT ==========
 app.get("/api/health", (req, res) => {

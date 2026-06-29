@@ -46,8 +46,9 @@ export async function register(req, res) {
     req.session.userId = user._id;
 
     console.log("📝 Saving registration session...");
-    console.log("Session ID:", req.sessionID);
-    console.log("User ID:", req.session.userId);
+    console.log("   Session ID:", req.sessionID);
+    console.log("   User ID:", req.session.userId);
+    console.log("   Session cookie domain:", req.session.cookie?.domain);
 
     // Explicitly save session before responding
     req.session.save((err) => {
@@ -58,7 +59,9 @@ export async function register(req, res) {
         });
       }
 
-      console.log("✅ Registration session saved.");
+      console.log("✅ Registration session saved to MongoDB!");
+      console.log("   Session ID:", req.sessionID);
+      console.log("   User ID:", req.session.userId);
 
       // Send welcome email (don't let failure affect registration)
       try {
@@ -119,8 +122,9 @@ export async function login(req, res) {
     req.session.userId = user._id;
 
     console.log("📝 Saving login session...");
-    console.log("Session ID:", req.sessionID);
-    console.log("User ID:", req.session.userId);
+    console.log("   Session ID:", req.sessionID);
+    console.log("   User ID:", req.session.userId);
+    console.log("   Session cookie domain:", req.session.cookie?.domain);
 
     // Explicitly save session before responding
     req.session.save((err) => {
@@ -131,7 +135,9 @@ export async function login(req, res) {
         });
       }
 
-      console.log("✅ Login session saved.");
+      console.log("✅ Login session saved to MongoDB!");
+      console.log("   Session ID:", req.sessionID);
+      console.log("   User ID:", req.session.userId);
 
       // Send login notification (don't let failure affect login)
       try {
