@@ -101,22 +101,15 @@ app.use(
   }),
 );
 
-// Add session debugging
 app.use((req, res, next) => {
-  console.log("🔍 Session Debug:", {
-    sessionId: req.sessionID,
-    userId: req.session?.userId,
-    hasSession: !!req.session,
-    cookie: req.headers.cookie?.substring(0, 50) + "...",
-  });
-  next();
-});
-
-// Force session save
-app.use((req, res, next) => {
-  if (req.session && !req.session.regenerate) {
-    req.session.save();
-  }
+  console.log("============== REQUEST ==============");
+  console.log("Method:", req.method);
+  console.log("URL:", req.originalUrl);
+  console.log("Origin:", req.headers.origin);
+  console.log("Cookie:", req.headers.cookie);
+  console.log("Session ID:", req.sessionID);
+  console.log("Session:", req.session);
+  console.log("=====================================");
   next();
 });
 
