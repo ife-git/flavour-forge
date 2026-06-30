@@ -55,7 +55,7 @@ app.use(
       }
     },
     credentials: true, // Important for sessions
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   }),
 );
@@ -96,6 +96,7 @@ app.use(
       sameSite: "none",
       domain:
         process.env.NODE_ENV === "production" ? ".onrender.com" : undefined,
+      path: "/", // ✅ ADD THIS LINE
     },
   }),
 );
