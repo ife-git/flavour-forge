@@ -29,41 +29,43 @@ const PORT = process.env.PORT || 3001;
 await connectDB();
 
 // ========== SECURITY MIDDLEWARE ==========
-// Helmet for security headers
-app.use(helmet());
+// Helmet for security headers - NOTE: This might block cookies in some cases
+// app.use(helmet()); // Try commenting this out temporarily
 
 // ========== CORS CONFIGURATION ==========
-// Allow multiple origins (development + production)
 const allowedOrigins = [
-  "http://localhost:5173", // Local development
-  "http://localhost:5174", // Alternative local port
-  "https://flavour-forge-frontend.onrender.com", // Production frontend
-  process.env.FRONTEND_URL, // Custom frontend URL from env
-].filter(Boolean); // Remove any undefined values
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://flavour-forge-frontend.onrender.com",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // Allow any .onrender.com subdomain
+      if (
+        origin.includes("onrender.com") ||
+        allowedOrigins.indexOf(origin) !== -1
+      ) {
         callback(null, true);
       } else {
         console.warn(`❌ CORS blocked: ${origin}`);
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
     },
-    credentials: true, // Important for sessions
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposedHeaders: ["Set-Cookie"], // ✅ ADD THIS - allows frontend to read cookie
   }),
 );
 
-// Rate limiting to prevent abuse
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
@@ -96,20 +98,27 @@ app.use(
       sameSite: "none",
       domain:
         process.env.NODE_ENV === "production" ? ".onrender.com" : undefined,
-      path: "/", // ✅ ADD THIS LINE
+      path: "/",
     },
   }),
 );
 
+// Add session debugging
 app.use((req, res, next) => {
-  console.log("============== REQUEST ==============");
-  console.log("Method:", req.method);
-  console.log("URL:", req.originalUrl);
-  console.log("Origin:", req.headers.origin);
-  console.log("Cookie:", req.headers.cookie);
-  console.log("Session ID:", req.sessionID);
-  console.log("Session:", req.session);
-  console.log("=====================================");
+  console.log("🔍 Session Debug:", {
+    sessionId: req.sessionID,
+    userId: req.session?.userId,
+    hasSession: !!req.session,
+    cookie: req.headers.cookie?.substring(0, 50) + "...",
+  });
+  next();
+});
+
+// Force session save
+app.use((req, res, next) => {
+  if (req.session && !req.session.regenerate) {
+    req.session.save();
+  }
   next();
 });
 
