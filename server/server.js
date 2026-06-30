@@ -63,11 +63,11 @@ app.use(
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // ✅ TEMPORARILY SET TO FALSE FOR DEBUGGING
+      httpOnly: false,
       maxAge: 14 * 24 * 60 * 60 * 1000,
       sameSite: "none",
       domain:
-        process.env.NODE_ENV === "production" ? ".onrender.com" : undefined,
+        process.env.NODE_ENV === "production" ? "onrender.com" : undefined, // ← REMOVED THE DOT
       path: "/",
     },
   }),
