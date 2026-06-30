@@ -7,32 +7,22 @@ import session from "express-session";
 import MongoStore from "connect-mongo";
 import rateLimit from "express-rate-limit";
 
-// Force Google DNS to prevent MongoDB connection issues
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
-// Route imports
 import authRoutes from "./routes/authRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import recipeRoutes from "./routes/recipeRoutes.js";
-
-// Database connection
 import { connectDB } from "./config/db.js";
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3001;
 
-// ========== CONNECT TO DATABASE FIRST ==========
 await connectDB();
 
-// ========== SECURITY MIDDLEWARE ==========
-// Helmet for security headers - NOTE: This might block cookies in some cases
-// app.use(helmet()); // Try commenting this out temporarily
-
-// ========== CORS CONFIGURATION ==========
+// ========== CORS - MUST BE FIRST ==========
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -44,42 +34,22 @@ app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-      // Allow any .onrender.com subdomain
       if (
-        origin.includes("onrender.com") ||
-        allowedOrigins.indexOf(origin) !== -1
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.includes("onrender.com")
       ) {
         callback(null, true);
       } else {
-        console.warn(`❌ CORS blocked: ${origin}`);
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-    exposedHeaders: ["Set-Cookie"], // ✅ ADD THIS - allows frontend to read cookie
   }),
 );
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many requests from this IP, please try again later.",
-});
-app.use("/api/", limiter);
-
-// Parse JSON bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ========== SESSION CONFIGURATION ==========
-console.log(
-  "🔗 MongoDB URI:",
-  process.env.MONGODB_URI?.substring(0, 30) + "...",
-);
-
+// ========== SESSION - MUST COME AFTER CORS ==========
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "jellyfish-baskingshark",
@@ -93,7 +63,7 @@ app.use(
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
+      httpOnly: false, // ✅ TEMPORARILY SET TO FALSE FOR DEBUGGING
       maxAge: 14 * 24 * 60 * 60 * 1000,
       sameSite: "none",
       domain:
@@ -103,26 +73,31 @@ app.use(
   }),
 );
 
-// Add session debugging
+// ========== OTHER MIDDLEWARE ==========
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests",
+});
+app.use("/api/", limiter);
+
+// ========== DEBUGGING MIDDLEWARE ==========
 app.use((req, res, next) => {
-  console.log("🔍 Session Debug:", {
-    sessionId: req.sessionID,
-    userId: req.session?.userId,
-    hasSession: !!req.session,
-    cookie: req.headers.cookie?.substring(0, 50) + "...",
-  });
+  console.log("🍪 Cookie header:", req.headers.cookie || "NO COOKIE");
+  console.log("🔑 Session ID:", req.sessionID);
+  console.log("👤 User ID:", req.session?.userId || "Not logged in");
   next();
 });
 
-// Force session save
-app.use((req, res, next) => {
-  if (req.session && !req.session.regenerate) {
-    req.session.save();
-  }
-  next();
-});
-
-// ========== HEALTH CHECK ENDPOINT ==========
+// ========== ROUTES ==========
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
@@ -131,17 +106,15 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// ========== MOUNT ROUTES ==========
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/recipes", recipeRoutes);
 
-// ========== 404 HANDLER ==========
+// ========== ERROR HANDLERS ==========
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// ========== GLOBAL ERROR HANDLER ==========
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
   res.status(500).json({
@@ -150,13 +123,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ========== START SERVER ==========
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📡 API endpoints:`);
-  console.log(`   POST /api/auth/register - Register user`);
-  console.log(`   POST /api/auth/login - Login user`);
-  console.log(`   POST /api/chat - AI recipe chat`);
-  console.log(`   GET  /api/recipes - Get saved recipes`);
-  console.log(`   GET  /api/health - Health check`);
 });
